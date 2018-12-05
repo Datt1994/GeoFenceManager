@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<gpx version="1.1" creator="Xcode">
+    
+    <!--
+     Provide one or more waypoints containing a latitude/longitude pair. If you provide one
+     waypoint, Xcode will simulate that specific location. If you provide multiple waypoints,
+     Xcode will simulate a route visiting each waypoint.
+     -->
+    <wpt lat="21.300950976178427" lon="-157.7094553657471">
+        <name>a</name>
+        
+        <!--
+         Optionally provide a time element for each waypoint. Xcode will interpolate movement
+         at a rate of speed based on the time elapsed between each waypoint. If you do not provide
+         a time element, then Xcode will use a fixed rate of speed.
+         
+         Waypoints must be sorted by time in ascending order.
+         -->
+        <time>2014-09-24T14:55:30Z</time>
+    </wpt>
+    <wpt lat="21.296472745754965" lon="-157.70400511702883">
+        <name>b</name>
+        <time>2014-09-24T14:56:00Z</time>
+    </wpt>
+    <wpt lat="21.28983511754285" lon="-157.70258891066896">
+        <name>c</name>
+        <time>2014-09-24T14:56:30Z</time>
+    </wpt>
+    <wpt lat="21.294633433015687" lon="-157.70915495833742">
+        <name>d</name>
+        <time>2014-09-24T14:57:00Z</time>
+    </wpt>
+    <wpt lat="21.289515224276535" lon="-157.7240465827881">
+        <name>e</name>
+        <time>2014-09-24T14:57:30Z</time>
+    </wpt>
+    <wpt lat="21.275039325842233" lon="-157.7070091911255">
+        <name>f</name>
+        <time>2014-09-24T14:58:00Z</time>
+    </wpt>
+    <wpt lat="21.29151454577244" lon="-157.69057261428225">
+        <name>g</name>
+        <time>2014-09-24T14:58:30Z</time>
+    </wpt>
+    <wpt lat="21.303749800894" lon="-157.69267546614992">
+        <name>h</name>
+        <time>2014-09-24T14:59:00Z</time>
+    </wpt>
+</gpx>
