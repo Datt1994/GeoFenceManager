@@ -43,11 +43,18 @@ class ViewController: UIViewController {
             annotation.title = obj.title
             annotation.coordinate = obj.coordinate
             mapView.addAnnotation(annotation)
-            _ = GeoFenceManager.shared.startMonitoringGeoFence(radius: 100, location: obj.coordinate, identifier: obj.title, data: ["key":"value" as AnyObject])
+            GeoFenceManager.shared.startMonitoringGeoFence(radius: 100, location: obj.coordinate, identifier: obj.title, data: ["key":"value" as AnyObject]) { result in
+                switch result {
+                case .success:
+                    print("Region'\(obj.title)' start monitoring successfully")
+                case .failure(let reason):
+                    print("Region'\(obj.title)' failed to start monitoring with reason: " + reason)
+                }
+            }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-            GeoFenceManager.shared.stopMonitoringGeoFence(withID: "a")
-        }
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+//            GeoFenceManager.shared.stopMonitoringGeoFence(withID: "a")
+//        }
     }
     
     let regionRadius: CLLocationDistance = 5000
@@ -77,6 +84,10 @@ class ViewController: UIViewController {
             self?.showToast(message: "You Left the Region: \(identifier)")
             print("Data: \(data)")
 //            print("Data: \(String(describing: data.data?["key"]?.jsonValue as? String))")
+        }
+        
+        GeoFenceManager.shared.monitoringDidFailForRegionHandler = { (identifier,data,region,error) in
+            print(error.localizedDescription)
         }
     }
 
