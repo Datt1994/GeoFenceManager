@@ -9,13 +9,22 @@
 import UIKit
 import CoreLocation
 
-class GeoFenceManager : NSObject{
+public struct GeoFenceManagerData : Decodable {
+    let identifier : String
+    let data : [String:AnyJSONType]?
+    let lat : CLLocationDegrees
+    let long : CLLocationDegrees
+    let radius : Int
+}
+
+public class GeoFenceManager : NSObject {
     static let shared = GeoFenceManager()
     
-    static let NotificationCenterGeoFenceDidEnterRegion = "NotificationCenterGeoFenceDidEnterRegion"
-    static let NotificationCenterGeoFenceDidExitRegion = "NotificationCenterGeoFenceDidExitRegion"
+    var didEnterRegionHandler: ((_ identifier:String,_ data:GeoFenceManagerData,_ region:CLRegion)->())?
+    var didExitRegionHandler: ((_ identifier:String,_ data:GeoFenceManagerData,_ region:CLRegion)->())?
+    var determineCurrentStateHandler: ((_ identifier:String,_ data:GeoFenceManagerData,_ region:CLRegion,_ state: CLRegionState)->())?
 
-    let locationManager = CLLocationManager()
+    fileprivate let locationManager = CLLocationManager()
     let UDGeoFencIDs = "GeoFencIDs"
     
     private override init() {
@@ -58,10 +67,10 @@ class GeoFenceManager : NSObject{
                 print("already added to Geofencing")
                 return true
             }
-            dicIDs[identifier] = ["identifier" : identifier , "Data": data , "lat" : location.latitude , "long": location.longitude , "radius" : Int(radius)]
+            dicIDs[identifier] = ["identifier" : identifier , "data": data , "lat" : location.latitude , "long": location.longitude , "radius" : Int(radius)]
             UserDefaults.standard.set(dicIDs, forKey: UDGeoFencIDs)
         } else {
-            UserDefaults.standard.set([identifier : ["identifier" : identifier , "Data": data , "lat" : location.latitude , "long": location.longitude , "radius" : Int(radius)]], forKey: UDGeoFencIDs)
+            UserDefaults.standard.set([identifier : ["identifier" : identifier , "data": data , "lat" : location.latitude , "long": location.longitude , "radius" : Int(radius)]], forKey: UDGeoFencIDs)
         }
         
         
@@ -81,11 +90,14 @@ class GeoFenceManager : NSObject{
             UserDefaults.standard.removeObject(forKey: UDGeoFencIDs)
         }
     }
-    func stopMonitoringGeoFence(withId MatchId : String) {
-        if let dicIDs = UserDefaults.standard.dictionary(forKey: UDGeoFencIDs) as? [String : [String:Any]] , let matchDic = dicIDs[MatchId] {
+    func stopMonitoringGeoFence(withID identifier : String) {
+        if var dicIDs = UserDefaults.standard.dictionary(forKey: UDGeoFencIDs) as? [String : [String:Any]] , let matchDic = dicIDs[identifier] {
             if let lat = matchDic["lat"] as? CLLocationDegrees , let long = matchDic["long"] as? CLLocationDegrees , let radius = matchDic["radius"] as?  CLLocationDistance {
-                let geofenceRegion = CLCircularRegion(center: CLLocationCoordinate2DMake(lat, long), radius:  min(radius, locationManager.maximumRegionMonitoringDistance), identifier: MatchId)
+                let geofenceRegion = CLCircularRegion(center: CLLocationCoordinate2DMake(lat, long), radius:  min(radius, locationManager.maximumRegionMonitoringDistance), identifier: identifier)
                 locationManager.stopMonitoring(for: geofenceRegion)
+                dicIDs[identifier] = nil
+                UserDefaults.standard.set(dicIDs, forKey: UDGeoFencIDs)
+                print(UserDefaults.standard.dictionary(forKey: UDGeoFencIDs) as? [String : [String:Any]] ?? [:])
             }
         }
     }
@@ -94,49 +106,33 @@ class GeoFenceManager : NSObject{
 }
 extension GeoFenceManager : CLLocationManagerDelegate {
     //MARK: - CLLocationManagerDelegate
-    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+    public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
 //        mapView.showsUserLocation = status == .authorizedAlways
     }
     
-    func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
+    public func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
         print("Monitoring failed for region with identifier: \(region!.identifier)")
     }
     
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Location Manager failed with the following error: \(error)")
     }
-//    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-//        if (status == CLAuthorizationStatus.authorizedAlways || status == CLAuthorizationStatus.authorizedWhenInUse) {
-//            //App Authorized, stablish geofence
-////            self.setupGeoFences()
-//        }
-//    }
-//
-//    func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
-//        print("Started Monitoring Region: \(region.identifier)")
-//        locationManager.requestState(for: region)
-//    }
 
-    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
-        let title = "You Entered the Region" + region.identifier
-        let info = ["data" : UserDefaults.standard.object(forKey: region.identifier) ?? "" , "identifier":region.identifier]
-        NotificationCenter.default.post(name: NSNotification.Name(rawValue: GeoFenceManager.NotificationCenterGeoFenceDidEnterRegion), object: nil, userInfo: info)
-        print(title)
-    }
-
-    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        let title = "You Left the Region" + region.identifier
-        let info = ["data" : UserDefaults.standard.object(forKey: region.identifier) ?? "", "identifier":region.identifier]
-        NotificationCenter.default.post(name: NSNotification.Name(rawValue: GeoFenceManager.NotificationCenterGeoFenceDidExitRegion), object: nil, userInfo: info)
-        print(title)
+    public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        if let dicIDs = UserDefaults.standard.dictionary(forKey: UDGeoFencIDs) as? [String : [String:AnyObject]] , let data = try? JSONDecoder().decode(GeoFenceManagerData.self, from: try JSONSerialization.data(withJSONObject: dicIDs[region.identifier] ?? [:], options: []))  {
+            didEnterRegionHandler?(region.identifier,data ,region)
+        }
     }
     
-    func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
-        
-        switch state {
-        case .inside: break
-        case .outside: break
-        default: break
+    public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        if let dicIDs = UserDefaults.standard.dictionary(forKey: UDGeoFencIDs) as? [String : [String:AnyObject]] , let data = try? JSONDecoder().decode(GeoFenceManagerData.self, from: try JSONSerialization.data(withJSONObject: dicIDs[region.identifier] ?? [:], options: []))  {
+            didExitRegionHandler?(region.identifier,data,region)
+        }
+    }
+    
+    public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
+        if let dicIDs = UserDefaults.standard.dictionary(forKey: UDGeoFencIDs) as? [String : [String:AnyObject]] , let data = try? JSONDecoder().decode(GeoFenceManagerData.self, from: try JSONSerialization.data(withJSONObject: dicIDs[region.identifier] ?? [:], options: []))  {
+            determineCurrentStateHandler?(region.identifier,data,region,state)
         }
     }
 
@@ -160,8 +156,50 @@ extension UIApplication {
 }
 // MARK:- Alert Controller with OK Button
 func showAlertView(_ strAlertTitle : String, strAlertMessage : String) -> UIAlertController {
-    let alert = UIAlertController(title: strAlertTitle, message: strAlertMessage, preferredStyle: UIAlertControllerStyle.alert)
-    alert.addAction(UIAlertAction(title: "Ok", style: UIAlertActionStyle.default, handler:{ (ACTION :UIAlertAction!)in
+    let alert = UIAlertController(title: strAlertTitle, message: strAlertMessage, preferredStyle: UIAlertController.Style.alert)
+    alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler:{ (ACTION :UIAlertAction!)in
     }))
     return alert
 }
+
+fileprivate protocol JSONType: Decodable {
+    var jsonValue: Any { get }
+}
+
+extension Int: JSONType {
+    public var jsonValue: Any { return self }
+}
+extension String: JSONType {
+    public var jsonValue: Any { return self }
+}
+extension Double: JSONType {
+    public var jsonValue: Any { return self }
+}
+extension Bool: JSONType {
+    public var jsonValue: Any { return self }
+}
+
+public struct AnyJSONType: JSONType {
+    public let jsonValue: Any
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if let intValue = try? container.decode(Int.self) {
+            jsonValue = intValue
+        } else if let stringValue = try? container.decode(String.self) {
+            jsonValue = stringValue
+        } else if let boolValue = try? container.decode(Bool.self) {
+            jsonValue = boolValue
+        } else if let doubleValue = try? container.decode(Double.self) {
+            jsonValue = doubleValue
+        } else if let doubleValue = try? container.decode(Array<AnyJSONType>.self) {
+            jsonValue = doubleValue
+        } else if let doubleValue = try? container.decode(Dictionary<String, AnyJSONType>.self) {
+            jsonValue = doubleValue
+        } else {
+            throw DecodingError.typeMismatch(JSONType.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unsupported JSON tyep"))
+        }
+    }
+}
+

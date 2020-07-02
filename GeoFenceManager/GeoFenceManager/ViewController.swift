@@ -34,7 +34,7 @@ class ViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        addGeoFenceObserver()
+        addGeoFenceHandler()
         GeoFenceManager.shared.startLocation()
         centerMapOnLocation(location: initialLocation)
         GeoFenceManager.shared.stopAllMonitoringGeoFence()
@@ -43,39 +43,43 @@ class ViewController: UIViewController {
             annotation.title = obj.title
             annotation.coordinate = obj.coordinate
             mapView.addAnnotation(annotation)
-            _ = GeoFenceManager.shared.startMonitoringGeoFence(radius: 100, location: obj.coordinate, identifier: obj.title, data: [:])
+            _ = GeoFenceManager.shared.startMonitoringGeoFence(radius: 100, location: obj.coordinate, identifier: obj.title, data: ["key":"value" as AnyObject])
         }
-        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            GeoFenceManager.shared.stopMonitoringGeoFence(withID: "a")
+        }
     }
     
     let regionRadius: CLLocationDistance = 5000
     func centerMapOnLocation(location: CLLocation) {
-        let coordinateRegion = MKCoordinateRegionMakeWithDistance(location.coordinate,
-                                                                  regionRadius, regionRadius)
+        let coordinateRegion = MKCoordinateRegion(center: location.coordinate,
+                                                  latitudinalMeters: regionRadius, longitudinalMeters: regionRadius)
         mapView.setRegion(coordinateRegion, animated: true)
     }
     
-    fileprivate func addGeoFenceObserver() {
-        NotificationCenter.default.addObserver(self, selector: #selector(self.GeoFenceDidEnterRegion(_:)), name:  NSNotification.Name(rawValue: GeoFenceManager.NotificationCenterGeoFenceDidEnterRegion), object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(self.GeoFenceDidExitRegion(_:)), name:  NSNotification.Name(rawValue: GeoFenceManager.NotificationCenterGeoFenceDidExitRegion), object: nil)
-    }
-    
-    @objc func GeoFenceDidEnterRegion(_ notification: NSNotification) {
-        print(notification.userInfo ?? "")
-        if let dict = notification.userInfo as NSDictionary? {
-            if  let identifier = dict["identifier"] as? String /*,let _ = dict["data"] as? [String:Any] */ {
-                self.showToast(message: "You Entered the Region: \(identifier)")
+    fileprivate func addGeoFenceHandler() {
+        GeoFenceManager.shared.determineCurrentStateHandler = { (identifier,data,region,state) in
+            switch state {
+            case .unknown: break
+            case .inside:
+                print("You are inside Region : \(identifier)")
+            case .outside:
+                print("You are outside Region : \(identifier)")
             }
         }
-    }
-    @objc func GeoFenceDidExitRegion(_ notification: NSNotification) {
-        print(notification.userInfo ?? "")
-        if let dict = notification.userInfo as NSDictionary? {
-            if let identifier = dict["identifier"] as? String /*,let _ = dict["data"] as? [String:Any] */ {
-                self.showToast(message: "You Left the Region: \(identifier)")
-            }
+        GeoFenceManager.shared.didEnterRegionHandler = { [weak self] (identifier,data,region) in
+            print("You Entered the Region: " + identifier)
+            self?.showToast(message: "You Entered the Region: \(identifier)")
+            print("Data: \(data)")
+        }
+        GeoFenceManager.shared.didExitRegionHandler = { [weak self] (identifier,data,region) in
+            print("You Left the Region: " + identifier)
+            self?.showToast(message: "You Left the Region: \(identifier)")
+            print("Data: \(data)")
+//            print("Data: \(String(describing: data.data?["key"]?.jsonValue as? String))")
         }
     }
+
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
