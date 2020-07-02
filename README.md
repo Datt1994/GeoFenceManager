@@ -1,6 +1,6 @@
 # GeoFenceManager
-[![Language: Swift 5](https://img.shields.io/badge/language-swift5-f48041.svg?style=flat-square)](https://developer.apple.com/swift)
-[![License](https://img.shields.io/cocoapods/l/GeoFenceManager.svg?style=flat)](https://github.com/Datt1994/GeoFenceManager/blob/master/LICENSE)
+[![Language: Swift 5](https://img.shields.io/badge/language-swift5-f48041.svg?style=flat)](https://developer.apple.com/swift)
+[![License](https://img.shields.io/cocoapods/l/DPOTPView.svg?style=flat)](https://github.com/Datt1994/GeoFenceManager/blob/master/LICENSE)
 
 GeoFenceManager is Geofencing helper class
 
